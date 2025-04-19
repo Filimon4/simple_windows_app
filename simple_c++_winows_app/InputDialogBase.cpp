@@ -4,15 +4,9 @@ InputDialogBase::InputDialogBase(HINSTANCE hInst, LPCWSTR className)
     : WindowBase(hInst, className), isDialogActive(false) {
 }
 
-//InputDialogBase::~InputDialogBase() {
-//    if (hWnd && IsWindow(hWnd)) {
-//        DestroyWindow(hWnd);
-//    }
-//}
-
 void InputDialogBase::ShowDialog(HWND parent, int width, int height) {
     if (isDialogActive) {
-        MessageBox(parent, L"Диалоговое окно уже открыто!", L"Ошибка", MB_ICONWARNING | MB_OK);
+        MessageBox(parent, L"Диалог уже открыт!", L"Ошибка", MB_ICONWARNING | MB_OK);
         if (hWnd) {
             SetForegroundWindow(hWnd);
             BringWindowToTop(hWnd);
@@ -21,11 +15,14 @@ void InputDialogBase::ShowDialog(HWND parent, int width, int height) {
     }
 
     hParent = parent;
+    isDialogActive = true;
+    EnableWindow(parent, FALSE);
+
     hWnd = CreateWindowEx(
         WS_EX_DLGMODALFRAME,
-        wndClassName,
+        wndClassName.c_str(),
         GetWindowTitle(),
-        WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
+        WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE | WS_THICKFRAME,
         CW_USEDEFAULT, CW_USEDEFAULT,
         width, height,
         parent,
@@ -34,20 +31,36 @@ void InputDialogBase::ShowDialog(HWND parent, int width, int height) {
         this
     );
 
-    if (hWnd) {
-        isDialogActive = true;
-        ShowWindow(hWnd, SW_SHOW);
-        UpdateWindow(hWnd);
-        EnableWindow(parent, FALSE);
+    if (!hWnd) {
+        DWORD err = GetLastError();
+        std::wstring errMsg = L"Ошибка создания окна. Код: " + std::to_wstring(err);
+        MessageBox(parent, errMsg.c_str(), L"Ошибка", MB_ICONERROR);
+        EnableWindow(parent, TRUE);
+        isDialogActive = false;
+        return;
+    }
 
-        MSG msg;
-        while (GetMessage(&msg, nullptr, 0, 0) && isDialogActive) {
+    ShowWindow(hWnd, SW_SHOW);
+    UpdateWindow(hWnd);
+
+    MSG msg;
+    while (IsWindow(hWnd)) {
+        if (GetMessage(&msg, nullptr, 0, 0)) {
             if (!IsDialogMessage(hWnd, &msg)) {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
         }
+        else {
+            break;
+        }
     }
+
+    EnableWindow(parent, TRUE);
+    SetForegroundWindow(parent);
+    SetActiveWindow(parent);
+    BringWindowToTop(parent);
+    isDialogActive = false;
 }
 
 LRESULT CALLBACK InputDialogBase::StaticDialogProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -64,6 +77,7 @@ LRESULT CALLBACK InputDialogBase::StaticDialogProc(HWND hWnd, UINT msg, WPARAM w
     if (pThis) {
         if (msg == WM_CLOSE) {
             DestroyWindow(hWnd);
+            PostQuitMessage(0);
             return 0;
         }
 
@@ -76,6 +90,7 @@ LRESULT CALLBACK InputDialogBase::StaticDialogProc(HWND hWnd, UINT msg, WPARAM w
                 SetForegroundWindow(pThis->hParent);
             }
             pThis->hWnd = nullptr;
+            return 0;
         }
 
         return result;

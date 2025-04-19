@@ -5,7 +5,11 @@ class MainWindow : public WindowBase {
 public:
     MainWindow(HINSTANCE hInstance);
     int Run(int nCmdShow);
-
-    LPCWSTR GetWindowTitle() const override { return L"Главное окно"; }
     LRESULT HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) override;
+    LPCWSTR GetWindowTitle() const override;
+
+    HWND GetResultBoxHandle() const { return hResultBox; }
+
+private:
+    HWND hResultBox = nullptr;
 };

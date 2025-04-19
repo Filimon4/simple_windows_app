@@ -6,4 +6,9 @@ public:
     InputArrayWindow(HINSTANCE hInst);
     LPCWSTR GetWindowTitle() const override;
     LRESULT DialogProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
+
+    std::wstring GetResult() const { return result; }
+
+private:
+    std::wstring result;
 };
