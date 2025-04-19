@@ -24,6 +24,7 @@
     <ProjectGuid>{1acd8773-9efb-48a2-9d01-eeded0bb5f3f}</ProjectGuid>
     <RootNamespace>simplecwinowsapp</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>simple_cpp_winows_app</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -105,16 +106,18 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\simple_cpp_windows_core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\simple_cpp_windows_core;..\simple_cpp_windows_ui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>simple_cpp_windows_core.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\simple_cpp_windows_core\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>simple_cpp_windows_core.lib;simple_cpp_windows_ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\simple_cpp_windows_ui\x64\Debug;..\simple_cpp_windows_core\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y /d "..\simple_cpp_windows_core\$(IntDir)simple_cpp_windows_core.dll" "$(OutDir)"</Command>
+      <Command>xcopy /Y /D "..\simple_cpp_windows_core\$(IntDir)simple_cpp_windows_core.dll" "$(OutDir)" &gt;nul
+xcopy /Y /D "..\simple_cpp_windows_ui\$(IntDir)simple_cpp_windows_ui.dll" "$(OutDir)" &gt;nul
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -135,26 +138,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="ButtonLogic.h" />
-    <ClInclude Include="CoreLogic.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="InputArrayWindow.h" />
-    <ClInclude Include="InputDialogBase.h" />
     <ClInclude Include="InputMatrixWindow.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="simple_c++_winows_app.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="WindowBase.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ButtonLogic.cpp" />
-    <ClCompile Include="CoreLogic.cpp" />
     <ClCompile Include="InputArrayWindow.cpp" />
-    <ClCompile Include="InputDialogBase.cpp" />
     <ClCompile Include="InputMatrixWindow.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
-    <ClCompile Include="WindowBase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="simple_c++_winows_app.rc" />
@@ -166,6 +163,9 @@
   <ItemGroup>
     <ProjectReference Include="..\simple_cpp_windows_core\simple_cpp_windows_core.vcxproj">
       <Project>{156a4251-97eb-48c6-a373-2e5d96938554}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\simple_cpp_windows_ui\simple_cpp_windows_ui.vcxproj">
+      <Project>{b669639c-2142-401a-9c94-ac9d989e9afa}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -2,7 +2,14 @@
 #include <windows.h>
 #include "WindowBase.h"
 
-class InputDialogBase : public WindowBase {
+
+#ifdef APPCORE_EXPORTS
+#define APPCORE_API __declspec(dllexport)
+#else
+#define APPCORE_API __declspec(dllimport)
+#endif
+
+class APPCORE_API InputDialogBase : public WindowBase {
 public:
     InputDialogBase(HINSTANCE hInst, LPCWSTR className);
     virtual ~InputDialogBase() = default;

@@ -7,5 +7,5 @@
 #include <string>
 
 
-extern "C" __declspec(dllexport) std::wstring processArrayInt(const std::wstring& input);
-extern "C" __declspec(dllexport) std::wstring processMatrixInt(const std::wstring& input);
+extern "C" __declspec(dllexport) const wchar_t* processArrayInt(const wchar_t* input);
+extern "C" __declspec(dllexport) const wchar_t* processMatrixInt(const wchar_t* input);

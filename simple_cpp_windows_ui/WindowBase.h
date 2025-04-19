@@ -2,7 +2,13 @@
 #include <windows.h>
 #include <string>
 
-class WindowBase {
+#ifdef APPCORE_EXPORTS
+#define APPCORE_API __declspec(dllexport)
+#else
+#define APPCORE_API __declspec(dllimport)
+#endif
+
+class APPCORE_API WindowBase {
 public:
     WindowBase(HINSTANCE hInst, const std::wstring& className);
     virtual ~WindowBase() = default;
@@ -14,9 +20,9 @@ public:
 protected:
     HWND hWnd = nullptr;
     HINSTANCE hInstance = nullptr;
-    std::wstring wndClassName;  // Используем std::wstring вместо LPCWSTR
+    std::wstring wndClassName;
 
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-    bool Register();  // Возвращает успешность регистрации
+    bool Register();
     bool Create(int nCmdShow, int width = 400, int height = 300);
 };

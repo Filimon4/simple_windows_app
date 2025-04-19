@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "InputDialogBase.h"
 
 InputDialogBase::InputDialogBase(HINSTANCE hInst, LPCWSTR className)

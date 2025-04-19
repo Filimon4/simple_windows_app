@@ -18,56 +18,28 @@
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="targetver.h">
+    <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Resource.h">
+    <ClInclude Include="InputDialogBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="simple_c++_winows_app.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MainWindow.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ButtonLogic.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="InputArrayWindow.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="InputMatrixWindow.h">
+    <ClInclude Include="WindowBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MainWindow.cpp">
+    <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ButtonLogic.cpp">
+    <ClCompile Include="InputDialogBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="InputArrayWindow.cpp">
+    <ClCompile Include="WindowBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="InputMatrixWindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="simple_c++_winows_app.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="simple_c++_winows_app.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
   </ItemGroup>
 </Project>
