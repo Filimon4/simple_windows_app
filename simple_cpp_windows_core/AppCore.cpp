@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <type_traits>
 
-static std::wstring lastResult;  // глобальный буфер, чтобы safely вернуть c_str()
+static std::wstring lastResult;
 
 template <typename T>
 T convertToNumber(const std::wstring& str) {
@@ -53,6 +53,16 @@ std::wstring convertToWstring(const std::vector<T>& numbers) {
     return result;
 }
 
+template <>
+std::wstring convertToWstring(const std::vector<std::byte>& numbers) {
+    std::wstring result;
+    for (size_t i = 0; i < numbers.size(); ++i) {
+        result += std::to_wstring(static_cast<int>(numbers[i]));
+        if (i < numbers.size() - 1) result += L",";
+    }
+    return result;
+}
+
 std::vector<std::wstring> splitString(const std::wstring& str, const std::wstring& delimiter) {
     std::vector<std::wstring> result;
     size_t start = 0, end = str.find(delimiter);
@@ -91,7 +101,17 @@ const wchar_t* processArrayInt(const wchar_t* input) {
     return lastResult.c_str();
 }
 
+const wchar_t* processArrayByte(const wchar_t* input) {
+    lastResult = processArray<std::byte>(input);
+    return lastResult.c_str();
+}
+
 const wchar_t* processMatrixInt(const wchar_t* input) {
     lastResult = processMatrix<int>(input);
+    return lastResult.c_str();
+}
+
+const wchar_t* processMatrixByte(const wchar_t* input) {
+    lastResult = processMatrix<std::byte>(input);
     return lastResult.c_str();
 }

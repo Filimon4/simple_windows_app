@@ -53,7 +53,7 @@ LRESULT CALLBACK WindowBase::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
         CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
         pThis = static_cast<WindowBase*>(pCreate->lpCreateParams);
         SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-        pThis->hWnd = hWnd;  // Сохраняем HWND в объекте
+        pThis->hWnd = hWnd;
     }
     else {
         pThis = reinterpret_cast<WindowBase*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));

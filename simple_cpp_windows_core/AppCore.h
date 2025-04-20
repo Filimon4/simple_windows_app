@@ -7,5 +7,7 @@
 #include <string>
 
 
-extern "C" __declspec(dllexport) const wchar_t* processArrayInt(const wchar_t* input);
-extern "C" __declspec(dllexport) const wchar_t* processMatrixInt(const wchar_t* input);
+extern "C" APPCORE_API const wchar_t* processArrayInt(const wchar_t* input);
+extern "C" APPCORE_API const wchar_t* processArrayByte(const wchar_t* input);
+extern "C" APPCORE_API const wchar_t* processMatrixInt(const wchar_t* input);
+extern "C" APPCORE_API const wchar_t* processMatrixByte(const wchar_t* input);

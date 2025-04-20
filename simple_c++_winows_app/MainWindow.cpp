@@ -5,6 +5,7 @@
 
 #define BTN1_ID 101
 #define BTN2_ID 102
+#define CHK_BYTE_MODE_ID 103
 
 MainWindow::MainWindow(HINSTANCE hInstance)
     : WindowBase(hInstance, L"MainWindowClass") {
@@ -43,6 +44,11 @@ LRESULT MainWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
         hResultBox = CreateWindowW(
             L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_LEFT | ES_READONLY,
             250, 50, 420, 300, hWnd, nullptr, hInstance, nullptr
+        );
+
+        hByteModeCheckbox = CreateWindow(
+            L"BUTTON", L"Byte режим", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+            50, 150, 150, 20, hWnd, (HMENU)CHK_BYTE_MODE_ID, hInstance, nullptr
         );
         break;
     case WM_COMMAND:
