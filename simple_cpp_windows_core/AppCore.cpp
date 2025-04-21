@@ -10,7 +10,9 @@ static std::wstring lastResult;
 
 template <typename T>
 T convertToNumber(const std::wstring& str) {
-    if constexpr (std::is_integral<T>::value)
+    if constexpr (std::is_same_v<T, std::byte>)
+        return static_cast<std::byte>(std::stoi(str));
+    else if constexpr (std::is_integral<T>::value)
         return static_cast<T>(std::stoi(str));
     else if constexpr (std::is_floating_point<T>::value)
         return static_cast<T>(std::stod(str));
@@ -47,17 +49,11 @@ template <typename T>
 std::wstring convertToWstring(const std::vector<T>& numbers) {
     std::wstring result;
     for (size_t i = 0; i < numbers.size(); ++i) {
-        result += std::to_wstring(numbers[i]);
-        if (i < numbers.size() - 1) result += L",";
-    }
-    return result;
-}
+        if constexpr (std::is_same_v<T, std::byte>)
+            result += std::to_wstring(static_cast<unsigned int>(numbers[i]));
+        else
+            result += std::to_wstring(numbers[i]);
 
-template <>
-std::wstring convertToWstring(const std::vector<std::byte>& numbers) {
-    std::wstring result;
-    for (size_t i = 0; i < numbers.size(); ++i) {
-        result += std::to_wstring(static_cast<int>(numbers[i]));
         if (i < numbers.size() - 1) result += L",";
     }
     return result;
@@ -92,8 +88,8 @@ std::wstring processMatrix(const std::wstring& line) {
 template <typename T>
 std::wstring processArray(const std::wstring& line) {
     auto numbers = splitAndConvertToNumbers<T>(line);
-    auto swapped = swapAroundMaxIdx(numbers);
-    return convertToWstring(swapped);
+    auto swapped = swapAroundMaxIdx<T>(numbers);
+    return convertToWstring<T>(swapped);
 }
 
 const wchar_t* processArrayInt(const wchar_t* input) {
