@@ -1,5 +1,5 @@
-﻿includelib kernel32.lib
-includelib msvcrt.lib
+﻿includelib msvcrt.lib
+includelib kernel32.lib
 
 extrn __imp_VirtualAlloc:QWORD
 extrn __imp_VirtualFree:QWORD
@@ -15,26 +15,22 @@ extern ExitProcess: proc
     tempBuffer dw 256 dup(0)  ; Временный буфер
     
 ; Прототипы функций
-ProcessArrayInt PROTO :DWORD    ; вход: указатель на wchar_t строку
-ProcessArrayByte PROTO :DWORD   ; вход: указатель на wchar_t строку
-ProcessMatrixInt PROTO :DWORD   ; вход: указатель на wchar_t строку
-ProcessMatrixByte PROTO :DWORD  ; вход: указатель на wchar_t строку
+ProcessArrayInt PROTO :QWORD    ; вход: указатель на wchar_t строку
+ProcessArrayByte PROTO :QWORD   ; вход: указатель на wchar_t строку
+ProcessMatrixInt PROTO :QWORD   ; вход: указатель на wchar_t строку
+ProcessMatrixByte PROTO :QWORD  ; вход: указатель на wchar_t строку
 
-.code
 
-; Преобразование строки в число (аналог std::stoi)
-StringToInt proc strPtr:DWORD
-    push rsi
-    push rdx
-       
+.code 
+
+StringToInt proc uses rsi rdx, strPtr:QWORD
     xor eax, eax
     xor edx, edx
-
     mov rsi, rcx
 
 convert_loop:
     mov dl, byte ptr [rsi]
-    test dl, dl ; zero flat если итог 0, производит побитовый И, проверяет конце строки "\0"
+    test dl, dl
     jz conversion_done
 
     cmp dl, '0'
@@ -42,12 +38,11 @@ convert_loop:
     cmp dl, '9'
     ja invalid_char
 
-    sub dl, '0' ; ACII символы. Если вычивает строку 0, то получаем число
-    imul eax, 10 ; увеличиваем разрядность, для следующего числа
+    sub dl, '0'
+    imul eax, 10
     add eax, edx
     
     inc rsi
-
     jmp convert_loop
 
 invalid_char:
@@ -55,74 +50,61 @@ invalid_char:
     jmp convert_loop
 
 conversion_done:
-    pop rdx
-    pop rsi
     ret
 StringToInt endp
 
 ; Разбиение строки по разделителю (аналог splitString)
-SplitString proc
-    push rbx
-    push rsi
-    push rdi
-    push r12
-    push r13
-    push r14
-
-    ; Сохраняем параметры
+SplitString proc uses rbx rsi rdi r12 r13 r14, strPtr:QWORD, delimiter:BYTE
     mov rsi, rcx        ; RSI = исходная строка
-    mov r12, rdx        ; R12 = символ-разделитель
+    mov r12b, dl        ; R12b = символ-разделитель
     xor r13, r13        ; R13 = счетчик подстрок
 
-    ; Первый проход: подсчитываем количество подстрок
 count_loop:
     mov al, byte ptr [rsi]
     test al, al
-    jz count_done       ; Конец строки
+    jz count_done
     
-    cmp al, r12b        ; Сравниваем с разделителем
+    cmp al, r12b
     je found_delimiter
     
     inc rsi
     jmp count_loop
 
 found_delimiter:
-    inc r13             ; Увеличиваем счетчик подстрок
-    inc rsi             ; Пропускаем разделитель
+    inc r13
+    inc rsi
     jmp count_loop
 
 count_done:
-    inc r13             ; Учитываем последнюю подстроку
+    inc r13
 
-    ; Выделяем память для массива указателей (8 байт на элемент)
+    ; Выделяем память для массива указателей
     mov rcx, r13
-    inc rcx             ; +1 для NULL в конце
-    shl rcx, 3          ; Умножаем на 8 (размер указателя)
+    inc rcx
+    shl rcx, 3
     call __imp_VirtualAlloc
     mov r14, rax        ; R14 = массив указателей
     xor r15, r15        ; R15 = индекс в массиве
 
     ; Второй проход: копируем подстроки
     mov rsi, [rsp+40]   ; Восстанавливаем исходный указатель
-    mov rdi, rsi        ; RDI = начало текущей подстроки
+    mov rdi, rsi
 
 copy_loop:
     mov al, byte ptr [rsi]
     test al, al
-    jz copy_last        ; Конец строки - обрабатываем последнюю подстроку
+    jz copy_last
     
-    cmp al, r12b        ; Сравниваем с разделителем
+    cmp al, r12b
     je split_substring
     
     inc rsi
     jmp copy_loop
 
 split_substring:
-    ; Вычисляем длину подстроки
     mov rcx, rsi
-    sub rcx, rdi        ; RCX = длина подстроки
+    sub rcx, rdi
     
-    ; Выделяем память для подстроки (+1 для нуль-терминатора)
     push rsi
     push rdi
     mov rdx, rcx
@@ -131,40 +113,6 @@ split_substring:
     pop rdi
     pop rsi
     
-    ; Копируем подстроку
-    mov rbx, rax        ; RBX = буфер для подстроки
-    mov rcx, rsi
-    sub rcx, rdi        ; Длина
-    mov rdx, rdi        ; Источник
-    mov r8, rbx         ; Приемник
-    call memcpy
-    
-    ; Добавляем нуль-терминатор
-    mov byte ptr [rbx+rcx], 0
-    
-    ; Сохраняем указатель в массив
-    mov [r14+r15*8], rbx
-    inc r15
-    
-    ; Пропускаем разделитель и обновляем RDI
-    inc rsi
-    mov rdi, rsi
-    jmp copy_loop
-
-copy_last:
-    ; Обрабатываем последнюю подстроку
-    mov rcx, rsi
-    sub rcx, rdi        ; Длина подстроки
-    jz empty_last       ; Если длина 0 (строка заканчивается разделителем)
-    
-    ; Выделяем память
-    push rsi
-    mov rdx, rcx
-    inc rdx
-    call __imp_VirtualAlloc
-    pop rsi
-    
-    ; Копируем
     mov rbx, rax
     mov rcx, rsi
     sub rcx, rdi
@@ -172,7 +120,32 @@ copy_last:
     mov r8, rbx
     call memcpy
     
-    ; Добавляем нуль-терминатор
+    mov byte ptr [rbx+rcx], 0
+    mov [r14+r15*8], rbx
+    inc r15
+    
+    inc rsi
+    mov rdi, rsi
+    jmp copy_loop
+
+copy_last:
+    mov rcx, rsi
+    sub rcx, rdi
+    jz empty_last
+    
+    push rsi
+    mov rdx, rcx
+    inc rdx
+    call __imp_VirtualAlloc
+    pop rsi
+    
+    mov rbx, rax
+    mov rcx, rsi
+    sub rcx, rdi
+    mov rdx, rdi
+    mov r8, rbx
+    call memcpy
+    
     mov byte ptr [rbx+rcx], 0
     mov [r14+r15*8], rbx
     jmp finish_split
@@ -181,77 +154,52 @@ empty_last:
     mov qword ptr [r14+r15*8], 0
 
 finish_split:
-    ; Добавляем NULL в конец массива
     mov qword ptr [r14+r15*8+8], 0
-    
-    ; Возвращаем массив
     mov rax, r14
-    
-    pop r14
-    pop r13
-    pop r12
-    pop rdi
-    pop rsi
-    pop rbx
     ret
 SplitString endp
 
-FindMaxElement proc arrayPtr:QWORD, count:QWORD
-    push rsi          ; Сохраняем регистры
-    push rbx
+FindMaxElement proc uses rsi rbx, arrayPtr:QWORD, count:QWORD
+    mov rsi, rcx
+    mov rcx, rdx
+    test rcx, rcx
+    jz findmax_error
     
-    mov rsi, rcx      ; RSI = указатель на массив
-    mov rcx, rdx      ; RCX = количество элементов
-    test rcx, rcx     ; Проверка на пустой массив
-    jz .error
+    mov eax, [rsi]
+    dec rcx
+    jz findmax_done
     
-    mov eax, [rsi]    ; EAX = первый элемент (текущий максимум)
-    dec rcx           ; Уменьшаем счётчик
-    jz .done          ; Если только один элемент
+    add rsi, 4
     
-    add rsi, 4        ; Переходим ко второму элементу
+findmax_search_loop:
+    mov ebx, [rsi]
+    cmp ebx, eax
+    jle findmax_next
+    mov eax, ebx
     
-.search_loop:
-    mov ebx, [rsi]    ; EBX = текущий элемент
-    cmp ebx, eax      ; Сравниваем с текущим максимумом
-    jle .next         ; Если меньше или равен - пропускаем
-    mov eax, ebx      ; Иначе обновляем максимум
+findmax_next:
+    add rsi, 4
+    loop findmax_search_loop
     
-.next:
-    add rsi, 4        ; Следующий элемент
-    loop .search_loop ; Повторяем пока RCX > 0
-    
-.done:
-    pop rbx           ; Восстанавливаем регистры
-    pop rsi
+findmax_done:
     ret
     
-.error:
-    xor eax, eax      ; Возвращаем 0 если массив пуст
-    pop rbx
-    pop rsi
+findmax_error:
+    xor eax, eax
     ret
 FindMaxElement endp
 
-SwapAroundMax proc
-    push rsi
-    push rdi
-    push r12
-    
-    ; Проверка на валидность индекса
+SwapAroundMax proc uses rsi rdi r12, arrayPtr:QWORD, count:QWORD, maxIndex:QWORD
     cmp r8, rdx
-    jae invalid_params  ; Если maxIndex >= count
+    jae swap_invalid_params
     
-    ; Вычисляем границы для переворота
-    mov rsi, rcx        ; RSI = начало массива
-    lea rdi, [rcx + r8*4 - 4] ; RDI = элемент перед максимальным
-    
-    ; Переворачиваем левую часть (до максимального)
-left_reverse:
+    mov rsi, rcx
+    lea rdi, [rcx + r8*4 - 4]
+
+swap_left_reverse:
     cmp rsi, rdi
-    jae right_part      ; Если указатели встретились
+    jae swap_right_part
     
-    ; Обмен значений
     mov eax, [rsi]
     mov r9d, [rdi]
     mov [rsi], r9d
@@ -259,18 +207,16 @@ left_reverse:
     
     add rsi, 4
     sub rdi, 4
-    jmp left_reverse
+    jmp swap_left_reverse
     
-right_part:
-    ; Теперь переворачиваем правую часть (после максимального)
-    lea rsi, [rcx + r8*4 + 4] ; RSI = элемент после максимального
-    lea rdi, [rcx + rdx*4 - 4] ; RDI = конец массива
+swap_right_part:
+    lea rsi, [rcx + r8*4 + 4]
+    lea rdi, [rcx + rdx*4 - 4]
     
-right_reverse:
+swap_right_reverse:
     cmp rsi, rdi
-    jae finish
+    jae swap_finish
     
-    ; Обмен значений
     mov eax, [rsi]
     mov r9d, [rdi]
     mov [rsi], r9d
@@ -278,99 +224,72 @@ right_reverse:
     
     add rsi, 4
     sub rdi, 4
-    jmp right_reverse
+    jmp swap_right_reverse
     
-finish:
-    pop r12
-    pop rdi
-    pop rsi
+swap_finish:
     ret
     
-invalid_params:
-    xor eax, eax        ; Возвращаем 0 в случае ошибки
-    pop r12
-    pop rdi
-    pop rsi
+swap_invalid_params:
+    xor eax, eax
     ret
 SwapAroundMax endp
 
-; Преобразование 64-битного числа в строку (десятичное представление)
-; Вход: RCX = число (value), RDX = указатель на буфер (strPtr)
-; Выход: строка в буфере (нуль-терминированная)
-; Разрушает: RAX, RCX, RDX, R8, R9, R10
-
-IntToString proc
-    push rbx
-    push rdi
+IntToString proc uses rbx rdi, value:QWORD, strPtr:QWORD
+    mov rdi, rdx
+    mov rax, rcx
+    mov r10, 10
     
-    mov rdi, rdx      ; RDI = указатель на буфер
-    mov rax, rcx      ; RAX = число для преобразования
-    mov r10, 10       ; Делитель (10 для десятичной системы)
-    
-    ; Обработка отрицательных чисел
     test rax, rax
-    jns positive
-    neg rax           ; Делаем число положительным
-    mov byte ptr [rdi], '-' ; Записываем минус
+    jns int_positive
+    neg rax
+    mov byte ptr [rdi], '-'
     inc rdi
     
-positive:
-    ; Находим конец буфера (будем заполнять в обратном порядке)
-    lea r8, [rdi + 32] ; Максимально возможная длина 64-битного числа
-    mov r9, r8         ; R9 = конец буфера
+int_positive:
+    lea r8, [rdi + 32]
+    mov r9, r8
     
-convert_loop:
-    xor rdx, rdx       ; Обнуляем RDX перед делением
-    div r10            ; RDX:RAX / 10 → RAX=частное, RDX=остаток
-    add dl, '0'        ; Преобразуем цифру в символ
-    dec r8             ; Двигаемся назад по буферу
-    mov [r8], dl       ; Сохраняем цифру
-    test rax, rax      ; Частное = 0?
-    jnz convert_loop   ; Нет - продолжаем
+int_convert_loop:
+    xor rdx, rdx
+    div r10
+    add dl, '0'
+    dec r8
+    mov [r8], dl
+    test rax, rax
+    jnz int_convert_loop
     
-    ; Копируем цифры в правильном порядке
-    mov rcx, r9        ; Конец буфера
-    sub rcx, r8        ; Длина числа
+    mov rcx, r9
+    sub rcx, r8
     
-copy_loop:
+int_copy_loop:
     mov al, [r8]
     mov [rdi], al
     inc r8
     inc rdi
-    loop copy_loop
+    loop int_copy_loop
     
-    ; Добавляем нуль-терминатор
     mov byte ptr [rdi], 0
-    
-    pop rdi
-    pop rbx
     ret
 IntToString endp
 
-ProcessArrayInt proc inputPtr:QWORD
-    push rbx
-    push rsi
-    push rdi
-    push r12
-    push r13
+ProcessArrayInt proc uses rbx rsi rdi r12 r13, inputPtr:QWORD
     sub rsp, 32
-
-    mov rsi, inputPtr
+    mov rsi, rcx
     
     ; Шаг 1: Разделить строки
-    mov rcx, rsi         ; RCX = входная строка
-    mov rdx, ','         ; RDX = разделитель
+    mov rcx, rsi
+    mov dl, ','
     call SplitString
-    mov r12, rax         ; R12 = массив с указателями на строки
+    mov r12, rax
 
     xor r13, r13
-count_loop:
+array_count_loop:
     mov rax, [r12 + r13*8]
     test rax, rax
-    jz count_done
+    jz array_count_done
     inc r13
-    jmp count_loop
-count_done:
+    jmp array_count_loop
+array_count_done:
 
     ; Выделить память под массив чисел
     mov rcx, r13
@@ -380,70 +299,66 @@ count_done:
 
     ; Строки в числа
     xor rdi, rdi
-convert_loop:
+array_convert_loop:
     cmp rdi, r13
-    jge convert_done
+    jge array_convert_done
     
     mov rcx, [r12 + rdi*8]
     call StringToInt
     mov [rbx + rdi*4], eax
     inc rdi
-    jmp convert_loop
-convert_done:
+    jmp array_convert_loop
+array_convert_done:
 
-    ; Шаг 2: Максимальный эелемент и его индекс
-    mov rcx, rbx         ; RCX = указатель
-    mov rdx, r13         ; RDX = счётчиук
+    ; Находим максимальный элемент
+    mov rcx, rbx
+    mov rdx, r13
     call FindMaxElement
-    mov r9, rax          ; Максимальный элемент
+    mov r9, rax
 
-    ; индекс максимумва
-    xor r8, r8           ; R8 = индекс
-find_max_idx:
+    ; Находим индекс максимального элемента
+    xor r8, r8
+array_find_max_idx:
     cmp [rbx + r8*4], r9d
-    je max_found
+    je array_max_found
     inc r8
     cmp r8, r13
-    jl find_max_idx
-max_found:
+    jl array_find_max_idx
+array_max_found:
 
-    ; Переварачиваем
-    mov rcx, rbx         ; RCX = указатель на массив
-    mov rdx, r13         ; RDX = счётчик
-    ; в R8 есть индекс макс. элемента
+    ; Переворачиваем части массива
+    mov rcx, rbx
+    mov rdx, r13
     call SwapAroundMax
 
-    ; Шаг 3: Конвертируем из чисел в строку
+    ; Конвертируем обратно в строку
     lea rdi, lastResult
-    xor r10, r10         ; R10 = индекс массива
-build_string:
+    xor r10, r10
+array_build_string:
     cmp r10, r13
-    jge string_done
+    jge array_string_done
     
-    ; Конвертируем число в строку
-    mov rcx, [rbx + r10*4]
-    mov rdx, rdi         ; RDX = бафер для указателя
+    mov ecx, [rbx + r10*4]
+    mov rdx, rdi
     call IntToString
 
-    ; Находим конец у текущей строчки с числом
     mov rax, rdi
-find_end:
+array_find_end:
     cmp byte ptr [rax], 0
-    je end_found
+    je array_end_found
     inc rax
-    jmp find_end
-end_found:
-    mov rdi, rax         ; Обновляет бафер с указателем
+    jmp array_find_end
+array_end_found:
+    mov rdi, rax
 
-    ; Доб. запятую
     cmp r10, r13
-    je no_comma
+    je array_no_comma
     mov byte ptr [rdi], ','
     inc rdi
-no_comma:
+array_no_comma:
     inc r10
-    jmp build_string
-string_done:
+    jmp array_build_string
+array_string_done:
 
     ; Освобождаем память
     mov rcx, rbx
@@ -451,47 +366,390 @@ string_done:
     mov rcx, r12
     call __imp_VirtualFree
 
-    ; Return pointer to lastResult
     lea rax, lastResult
-
-    ; Возврат
     add rsp, 32
-    pop r13
-    pop r12
-    pop rdi
-    pop rsi
-    pop rbx
     ret
 ProcessArrayInt endp
 
-ProcessArrayByte proc inputPtr:DWORD
-    ; Аналогично ProcessArrayInt, но с обработкой std::byte
-    ; ...
+; Helper function to find max byte in array
+FindMaxByte proc uses rsi, arrayPtr:QWORD, count:QWORD
+    mov rsi, rcx        ; RSI = array pointer
+    mov rcx, rdx        ; RCX = count
+    test rcx, rcx
+    jz empty_array
+    
+    xor eax, eax
+    mov al, [rsi]       ; AL = first byte (max)
+    dec rcx
+    jz done
+    
+    add rsi, 1          ; Move to next byte
+    
+search_loop:
+    mov dl, [rsi]
+    cmp dl, al
+    jbe next_byte
+    mov al, dl          ; New max found
+    
+next_byte:
+    add rsi, 1
+    loop search_loop
+    
+done:
+    ret
+    
+empty_array:
+    xor eax, eax
+    ret
+FindMaxByte endp
+
+ProcessArrayByte proc uses rbx rsi rdi r12 r13, inputPtr:QWORD
+    sub rsp, 32
+    mov rsi, rcx        ; RSI = input string pointer
+    
+    ; Step 1: Split string by commas
+    mov rcx, rsi        ; RCX = input string
+    mov dl, ','         ; DL = delimiter
+    call SplitString
+    mov r12, rax        ; R12 = array of string pointers
+    test r12, r12
+    jz pa_error         ; If splitting failed
+    
+    ; Count number of elements
+    xor r13, r13        ; R13 = element count
+count_loop:
+    mov rax, [r12 + r13*8]
+    test rax, rax
+    jz count_done
+    inc r13
+    jmp count_loop
+count_done:
+    
+    ; Allocate memory for byte array
+    mov rcx, r13        ; Number of bytes needed
+    call __imp_VirtualAlloc
+    mov rbx, rax        ; RBX = byte array
+    test rbx, rbx
+    jz pa_error
+    
+    ; Convert strings to bytes
+    xor rdi, rdi        ; RDI = index
+convert_loop:
+    cmp rdi, r13
+    jge convert_done
+    
+    mov rcx, [r12 + rdi*8]  ; Current string
+    call StringToInt         ; Convert to number (returns in EAX)
+    
+    ; Store as byte (with range check)
+    cmp eax, 0FFh
+    ja value_too_large
+    cmp eax, 0
+    jl value_too_small
+    
+    mov [rbx + rdi], al ; Store byte
+    inc rdi
+    jmp convert_loop
+    
+value_too_large:
+    mov eax, 0FFh       ; Clamp to 255
+    mov [rbx + rdi], al
+    inc rdi
+    jmp convert_loop
+    
+value_too_small:
+    xor eax, eax        ; Clamp to 0
+    mov [rbx + rdi], al
+    inc rdi
+    jmp convert_loop
+    
+convert_done:
+    
+    ; Find max byte value
+    mov rcx, rbx        ; Array pointer
+    mov rdx, r13        ; Count
+    call FindMaxByte
+    mov r9d, eax        ; R9D = max value
+    
+    ; Find index of max value
+    xor r8, r8          ; R8 = index
+find_max_idx:
+    cmp r8, r13
+    jge max_found
+    mov al, [rbx + r8]
+    cmp al, r9b
+    je max_found
+    inc r8
+    jmp find_max_idx
+max_found:
+    
+    ; Swap elements around max (same as for integers)
+    mov rcx, rbx        ; Array pointer
+    mov rdx, r13        ; Count
+    ; R8 already contains max index
+    call SwapAroundMax
+    
+    ; Convert back to string
+    lea rdi, lastResult
+    xor r10, r10        ; Index
+string_loop:
+    cmp r10, r13
+    jge string_done
+    
+    ; Convert byte to string
+    xor eax, eax
+    mov al, [rbx + r10]
+    mov rcx, rax
+    mov rdx, rdi
+    call IntToString
+    
+    ; Find string end
+    mov rax, rdi
+find_end:
+    cmp byte ptr [rax], 0
+    je end_found
+    inc rax
+    jmp find_end
+end_found:
+    mov rdi, rax
+    
+    ; Add comma if not last element
+    cmp r10, r13
+    je no_comma
+    mov byte ptr [rdi], ','
+    inc rdi
+no_comma:
+    inc r10
+    jmp string_loop
+    
+string_done:
+    ; Clean up
+    mov rcx, rbx
+    call __imp_VirtualFree
+    
+    mov rcx, r12
+    call __imp_VirtualFree
+    
+    lea rax, lastResult
+    add rsp, 32
+    ret
+    
+pa_error:
+    xor eax, eax
+    add rsp, 32
     ret
 ProcessArrayByte endp
 
-ProcessMatrixInt proc inputPtr:DWORD
-    ; 1. Разбиваем на строки по \r\n (SplitString)
-    mov esi, inputPtr
-    ; ... ASM реализация ...
-    
-    ; 2. Для каждой строки:
-    ;   - разбиваем на числа
-    ;   - находим максимум
-    ;   - переставляем элементы
-    ;   - формируем строку результата
-    
-    ; 3. Объединяем строки с \r\n
-    
-    ; Возвращаем указатель на lastResult
-    lea eax, lastResult
+ProcessMatrixInt proc uses rbx rsi rdi r12 r13 r14 r15, inputPtr:QWORD
+    sub rsp, 32
+
+    ; Step 1: Split into rows (by ';')
+    mov rsi, rcx                ; RSI = input string
+    mov rcx, rsi
+    mov dl, ';'                 ; DL = row delimiter
+    call SplitString
+    mov r12, rax                ; R12 = array of row strings
+    test r12, r12
+    jz pm_error                 ; If splitting failed
+
+    ; Count number of rows
+    xor r13, r13                ; R13 = row count
+
+count_rows:
+    mov rax, [r12 + r13*8]
+    test rax, rax
+    jz rows_counted
+    inc r13
+    jmp count_rows
+
+rows_counted:
+    test r13, r13
+    jz pm_error                 ; No rows found
+
+    ; Step 2: Process first row to determine column count
+    mov rcx, [r12]              ; First row string
+    mov dl, ','                 ; DL = column delimiter
+    call SplitString
+    mov r14, rax                ; R14 = array of first row elements
+    test r14, r14
+    jz pm_error
+
+    ; Count columns in first row
+    xor r15, r15                ; R15 = column count
+
+count_first_row_cols:
+    mov rax, [r14 + r15*8]
+    test rax, rax
+    jz cols_counted
+    inc r15
+    jmp count_first_row_cols
+
+cols_counted:
+    test r15, r15
+    jz pm_error                 ; No columns found
+
+    ; Allocate matrix (r13 rows × r15 columns)
+    mov rax, r13
+    mul r15                     ; RAX = total elements
+    shl rax, 2                  ; Multiply by 4 (sizeof DWORD)
+    mov rcx, rax
+    call __imp_VirtualAlloc
+    mov rbx, rax                ; RBX = matrix data
+    test rbx, rbx
+    jz pm_error
+
+    ; Step 3: Parse all rows into matrix
+    xor rdi, rdi                ; RDI = row index
+
+parse_rows:
+    cmp rdi, r13
+    jge rows_parsed
+
+    ; Split current row into elements
+    mov rcx, [r12 + rdi*8]      ; Current row string
+    mov dl, ','
+    call SplitString
+    test rax, rax
+    jz parse_error
+
+    ; Verify column count matches
+    xor r8, r8                  ; Column counter
+
+verify_cols:
+    mov r9, [rax + r8*8]
+    test r9, r9
+    jz verify_done
+    inc r8
+    jmp verify_cols
+
+verify_done:
+    cmp r8, r15
+    jne parse_error             ; Column count mismatch
+
+    ; Parse elements in current row
+    xor r9, r9                  ; Column index
+
+parse_cols:
+    cmp r9, r15
+    jge cols_parsed
+
+    ; Calculate linear index: (row * columns) + col
+    mov rax, rdi
+    mul r15
+    add rax, r9                 ; RAX = linear index
+
+    ; Convert element to integer
+    mov rcx, [rax + r9*8]       ; Current element string
+    call StringToInt
+
+    ; Store in matrix
+    mov [rbx + rax*4], eax
+
+    inc r9
+    jmp parse_cols
+
+cols_parsed:
+    mov rcx, rax
+    call __imp_VirtualFree
+
+    inc rdi
+    jmp parse_rows
+
+parse_error:
+    mov rcx, rbx
+    call __imp_VirtualFree
+    jmp pm_error
+
+rows_parsed:
+    ; Step 4: Find max element and its position
+    mov rcx, rbx                ; Matrix data
+    mov rdx, r13                ; Rows
+    mov r8, r15                 ; Columns
+    call FindMatrixMax
+    mov r9, rax                 ; R9 = max value
+    mov r10, rdx                ; R10 = max row index
+    mov r11, r8                 ; R11 = max col index
+
+    ; Step 5: Process matrix (example: swap quadrants around max)
+    mov rcx, rbx                ; Matrix data
+    mov rdx, r13                ; Rows
+    mov r8, r15                 ; Columns
+    mov r9, r10                 ; Max row
+    mov r10, r11                ; Max column
+    call ProcessMatrixAroundMax
+
+    ; Step 6: Convert matrix back to string
+    lea rdi, lastResult
+    xor rsi, rsi                ; Row index
+
+matrix_to_string_rows:
+    cmp rsi, r13
+    jge matrix_string_done
+
+    xor r14, r14                ; Column index
+
+matrix_to_string_cols:
+    cmp r14, r15
+    jge row_done
+
+    ; Calculate linear index
+    mov rax, rsi
+    mul r15
+    add rax, r14
+
+    ; Convert element to string
+    mov ecx, [rbx + rax*4]
+    mov rdx, rdi
+    call IntToString
+
+    ; Find string end
+    mov rax, rdi
+
+find_string_end:
+    cmp byte ptr [rax], 0
+    je string_end_found
+    inc rax
+    jmp find_string_end
+
+string_end_found:
+    mov rdi, rax
+
+    ; Add column separator (except last column)
+    cmp r14, r15
+    je no_col_separator
+    mov byte ptr [rdi], ','
+    inc rdi
+no_col_separator:
+    inc r14
+    jmp matrix_to_string_cols
+
+row_done:
+    ; Add row separator (except last row)
+    cmp rsi, r13
+    je no_row_separator
+    mov byte ptr [rdi], ','
+    inc rdi
+    no_row_separator:
+    inc rsi
+    jmp matrix_to_string_rows
+
+matrix_string_done:
+    ; Clean up
+    mov rcx, rbx
+    call __imp_VirtualFree
+
+    mov rcx, r12
+    call __imp_VirtualFree
+
+    lea rax, lastResult
+    add rsp, 32
     ret
+
+pm_error:
+    xor eax, eax
+    add rsp, 32
+    ret
+
 ProcessMatrixInt endp
 
-ProcessMatrixByte proc inputPtr:DWORD
-    ; Аналогично ProcessMatrixInt, но с обработкой std::byte
-    ; ...
-    ret
-ProcessMatrixByte endp
-
-END
+end
